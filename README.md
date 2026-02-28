@@ -1,0 +1,2 @@
+Expert Discovery System and Collaboration Network Analysis with HORUS data.
+The objective is to develop an intelligent model that identifies latent areas of expertise and recommends thesis advisors based on semantic affinity, overcoming traditional administrative classifications.
