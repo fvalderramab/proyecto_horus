@@ -18,6 +18,7 @@ matplotlib
 matplotlib-inline
 nest-asyncio
 numpy
+nltk
 openpyxl
 packaging
 pandas
