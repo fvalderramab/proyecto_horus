@@ -92,3 +92,4 @@ wcwidth==0.6.0
 weasel==0.4.3
 wordcloud==1.9.6
 wrapt==2.1.1
+jupytext
