@@ -1,4 +1,5 @@
 data/
+outputs/
 .agents/
 
 # Byte-compiled / optimized / DLL files
