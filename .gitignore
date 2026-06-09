@@ -1,5 +1,6 @@
 data/
 outputs/
+models/
 .agents/
 .antigravity*
 notebooks/**/*.py
