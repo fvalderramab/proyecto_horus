@@ -8,17 +8,17 @@ The primary objective of this project is to propose, implement, and validate a *
 
 ---
 
-## 📊 Academic Requirements Mapping (Competencias de Minería de Datos)
+## 📊 Academic Requirements Mapping
 
 To satisfy the requirements of the academic curriculum, this repository implements a complete data mining pipeline covering the five key stages of data analysis:
 
-| Stage (Etapa) | Description (Descripción) | Implementations (Técnicas Aplicadas) | Notebooks |
+| Stage | Description | Implementations | Notebooks |
 | :--- | :--- | :--- | :--- |
-| **1. Descriptive Analysis**<br>*(Análisis Descriptivo)* | Exploratory analysis of raw academic datasets across faculties. | Missing value analysis, temporal distribution analysis, faculty productivity, co-author distribution, and language representation checks. | [01_eda.ipynb](file:///notebooks/01_eda.ipynb) |
-| **2. Preprocessing**<br>*(Procesamiento)* | Cleaning and formatting text for embedding and symbolic models. | Unicode normalization, mojibake resolution, dual preprocessing strategy (minimal cleaning for transformer-based pipelines vs. spaCy lemmatization, stopword removal, and n-gram extraction for classical models). | [02_preprocessing.ipynb](file:///notebooks/02_preprocessing.ipynb) |
-| **3. Association**<br>*(Asociación)* | Mining co-authorship transactional patterns and groups. | Transactional formatting of author groups, **Apriori Algorithm** for frequent itemset mining, co-authorship association rules, and co-authorship graph construction. | [03_association.ipynb](file:///notebooks/03_association.ipynb) |
-| **4. Clustering / Topic Modeling**<br>*(Agrupación)* | Unsupervised discovery of latent academic topics. | **Classical NLP:** TF-IDF, Latent Semantic Analysis (LSA), K-Means, Agglomerative Hierarchical Clustering, and classical LDA.<br>**Modern NLP:** Jina Embeddings v5, UMAP + HDBSCAN, FASTopic neural modeling, LLM-XTM (VAE + LLM refinement), and PRISM (LoRA fine-tuning) + Leiden community detection. | [04_classical_clustering.ipynb](file:///notebooks/04_classical_clustering.ipynb)<br>[05_modern_clustering.ipynb](file:///notebooks/05_modern_clustering.ipynb)<br>[07_fastopic_modeling.ipynb](file:///notebooks/07_fastopic_modeling.ipynb)<br>[08_llm_xtm_modeling.ipynb](file:///notebooks/08_llm_xtm_modeling.ipynb)<br>[09_prism_finetuning.ipynb](file:///notebooks/09_prism_finetuning.ipynb)<br>[10_graph_topic_modeling.ipynb](file:///notebooks/10_graph_topic_modeling.ipynb) |
-| **5. Classification**<br>*(Clasificación)* | Predictive modeling of administrative departments. | **Logistic Regression, Random Forest, and LightGBM** classifiers trained to predict administrative faculties from semantic embeddings. Evaluates classification overlap as a measure of interdisciplinary boundary crossing. | [12_classification.ipynb](file:///notebooks/12_classification.ipynb) |
+| **1. Descriptive Analysis** | Exploratory analysis of raw academic datasets across faculties. | Missing value analysis, temporal distribution analysis, faculty productivity, co-author distribution, and language representation checks. | [01_eda.ipynb](file:///notebooks/01_eda.ipynb) |
+| **2. Preprocessing** | Cleaning and formatting text for embedding and symbolic models. | Unicode normalization, mojibake resolution, dual preprocessing strategy (minimal cleaning for transformer-based pipelines vs. spaCy lemmatization, stopword removal, and n-gram extraction for classical models). | [02_preprocessing.ipynb](file:///notebooks/02_preprocessing.ipynb) |
+| **3. Association** | Mining co-authorship transactional patterns and groups. | Transactional formatting of author groups, **Apriori Algorithm** for frequent itemset mining, co-authorship association rules, and co-authorship graph construction. | [03_association.ipynb](file:///notebooks/03_association.ipynb) |
+| **4. Clustering / Topic Modeling** | Unsupervised discovery of latent academic topics. | **Classical NLP:** TF-IDF, Latent Semantic Analysis (LSA), K-Means, Agglomerative Hierarchical Clustering, and classical LDA.<br>**Modern NLP:** Jina Embeddings v5, UMAP + HDBSCAN, FASTopic neural modeling, LLM-XTM (VAE + LLM refinement), and PRISM (LoRA fine-tuning) + Leiden community detection. | [04_classical_clustering.ipynb](file:///notebooks/04_classical_clustering.ipynb)<br>[05_modern_clustering.ipynb](file:///notebooks/05_modern_clustering.ipynb)<br>[07_fastopic_modeling.ipynb](file:///notebooks/07_fastopic_modeling.ipynb)<br>[08_llm_xtm_modeling.ipynb](file:///notebooks/08_llm_xtm_modeling.ipynb)<br>[09_prism_finetuning.ipynb](file:///notebooks/09_prism_finetuning.ipynb)<br>[10_graph_topic_modeling.ipynb](file:///notebooks/10_graph_topic_modeling.ipynb) |
+| **5. Classification** | Predictive modeling of administrative departments. | **Logistic Regression, Random Forest, and LightGBM** classifiers trained to predict administrative faculties from semantic embeddings. Evaluates classification overlap as a measure of interdisciplinary boundary crossing. | [12_classification.ipynb](file:///notebooks/12_classification.ipynb) |
 
 ---
 
@@ -82,3 +82,59 @@ The project is structured as a sequential 12-notebook pipeline:
    ```
 
 *Note: Due to the size of the embeddings matrix and neural model training, notebooks 05, 07, 08, 09, and 10 are optimized for execution on GPU-accelerated environments (such as Google Colab with T4 GPU).*
+
+---
+
+## 📚 References
+
+This project utilizes several state-of-the-art architectures and frameworks. Please cite the original works when referencing these implementations:
+
+* **PRISM (LLM-Guided Semantic Clustering)**
+  ```bibtex
+  @inproceedings{douglas2026prism,
+    author    = {Douglas, Connor and Balci, Utkucan and Aylett-Bullock, Joseph},
+    title     = {PRISM: LLM-Guided Semantic Clustering for High-Precision Topics},
+    booktitle = {Proceedings of the ACM Web Conference 2026 (WWW '26)},
+    year      = {2026},
+    note      = {arXiv:2604.03180 [cs.LG]}
+  }
+  ```
+
+* **LLM-XTM (Cross-Lingual VAE Topic Refinement)**
+  ```bibtex
+  @misc{xuan2026llmxtmenhancingcrosslingualtopic,
+    title={LLM-XTM: Enhancing Cross-Lingual Topic Models with Large Language Models},
+    author={Minh Chu Xuan and Tien-Phat Nguyen and Linh Ngo Van and Dinh Viet Sang and Nguyen Thi Ngoc Diep and Trung Le},
+    year={2026},
+    eprint={2605.03299},
+    archivePrefix={arXiv},
+    primaryClass={cs.CL},
+    url={https://arxiv.org/abs/2605.03299}
+  }
+  ```
+
+* **FASTopic (Neural Topic Modeling)**
+  ```bibtex
+  @inproceedings{wu2024fastopic,
+    title={FASTopic: Pretrained Transformer is a Fast, Adaptive, Stable, and Transferable Topic Model},
+    author={Wu, Xiaobao and Nguyen, Thong Thanh and Zhang, Delvin Ce and Wang, William Yang and Luu, Anh Tuan},
+    booktitle={The Thirty-eighth Annual Conference on Neural Information Processing Systems (NeurIPS '24)},
+    year={2024}
+  }
+  ```
+
+* **BERTopic (Modern Clustering Baseline)**
+  ```bibtex
+  @article{grootendorst2022bertopic,
+    title={BERTopic: Neural topic modeling with a class-based TF-IDF procedure},
+    author={Grootendorst, Maarten},
+    journal={arXiv preprint arXiv:2203.05794},
+    year={2022}
+  }
+  ```
+
+---
+
+## 📄 License
+
+This repository is licensed under the **MIT License**. See the [LICENSE](file:///LICENSE) file for more details.
