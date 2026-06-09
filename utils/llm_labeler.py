@@ -11,10 +11,10 @@ from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_excep
 import openai
 from openai import AsyncOpenAI
 
-class CentroidTopicLabeler:
+class DocumentTopicLabeler:
     """
-    A reusable class for automatically labeling clustered topic embeddings
-    using the DeepSeek LLM. Extracted from the topic modeling pipeline.
+    A reusable class for automatically labeling clustered topics and evaluating cohesion
+    using the DeepSeek LLM based on representative documents.
     """
     def __init__(
         self, 
@@ -53,8 +53,8 @@ class CentroidTopicLabeler:
         os.replace(temp_path, self.checkpoint_path)
 
     @retry(
-        wait=wait_exponential(multiplier=1, min=4, max=60),
-        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1.5, min=2, max=30),
+        stop=stop_after_attempt(10),
         retry=retry_if_exception_type(Exception),
         reraise=True
     )
@@ -64,10 +64,14 @@ class CentroidTopicLabeler:
             return comm_id, "No API Key"
             
         system_prompt = (
-            "You are an expert academic taxonomist at Universidad Nacional de Colombia. "
-            "Synthesize a single, concise academic research area name that encompasses the provided documents. "
-            "Output MUST be strictly in Spanish. Max 5 words. No conversational filler. "
-            "You MUST output a valid JSON object with a single key 'label'."
+            "You are an expert academic taxonomist. You will be provided with the most representative documents "
+            "of a research cluster from a university. Your task is to:\n"
+            "1. Assign a 'label' (maximum 5 words, in Spanish) that summarizes the research area.\n"
+            "2. Evaluate the cohesion of the cluster ('cohesion_score': 'High', 'Medium', or 'Low'). A 'High' score "
+            "indicates that the documents represent a clear and consistent research niche. 'Low' indicates "
+            "that the documents are a diffuse mix of unrelated concepts.\n"
+            "3. Provide a brief 'reasoning' (maximum 2 sentences) explaining your cohesion evaluation.\n"
+            "You MUST respond STRICTLY in JSON format with the keys: 'label', 'cohesion_score', 'reasoning'."
         )
         
         docs_text = "\n".join([f"- {doc}" for doc in docs])
@@ -76,14 +80,13 @@ class CentroidTopicLabeler:
         async with semaphore:
             try:
                 response = await self.client.chat.completions.create(
-                    model="deepseek-chat",
+                    model="deepseek-v4-pro",
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    response_format={"type": "json_object"},
                     temperature=0.1,
-                    max_tokens=64
+                    max_tokens=1500
                 )
             except openai.RateLimitError as e:
                 print(f"Rate limit exceeded for cluster {comm_id}: {e}")
@@ -100,21 +103,32 @@ class CentroidTopicLabeler:
             
             message = response.choices[0].message
             if getattr(message, 'refusal', None):
-                print(f"Model refused the request for cluster {comm_id}: {message.refusal}")
-                return int(comm_id), "Error: Request Refused"
+                raise ValueError(f"Model refused the request: {message.refusal}")
                 
             content = message.content
             if not content:
-                return int(comm_id), "Error: No Content"
+                raise ValueError("API returned empty content")
                 
             content = content.strip()
+            # Strip markdown blocks if present
+            if content.startswith("```json"):
+                content = content[7:]
+            elif content.startswith("```"):
+                content = content[3:]
+            if content.endswith("```"):
+                content = content[:-3]
+            content = content.strip()
+            
             try:
                 parsed = json.loads(content)
-                label = parsed.get("label", "Error en Formato")
-            except json.JSONDecodeError:
-                label = "Error en JSON"
+                label = parsed.get("label", "Error")
+                score = parsed.get("cohesion_score", "Low")
+                reasoning = parsed.get("reasoning", "")
+                result = {"label": label, "cohesion_score": score, "reasoning": reasoning}
+            except json.JSONDecodeError as e:
+                raise ValueError(f"JSON Parsing Error: {e} | Content: {content[:100]}")
                 
-            return int(comm_id), str(label).strip()
+            return int(comm_id), result
 
     async def generate_labels(self, df, embeddings, cluster_col='cluster_id', text_col='embeddings_text', noise_label_id=-1):
         """
@@ -128,10 +142,13 @@ class CentroidTopicLabeler:
             noise_label_id (int): ID representing noise/outliers to be skipped.
             
         Returns:
-            dict: Mapping of {cluster_id (int): "Topic Label"}.
+            dict: Mapping of {cluster_id (int): {"label": ..., "cohesion_score": ..., "reasoning": ...}}.
         """
         if len(df) != embeddings.shape[0]:
             raise ValueError("Mismatch between metadata rows and embeddings size!")
+
+        # Reset index to ensure alignment with numpy embeddings matrix
+        df = df.reset_index(drop=True)
 
         valid_clusters = df[df[cluster_col] != noise_label_id][cluster_col].unique()
         print(f"Found {len(valid_clusters)} valid clusters (excluding noise).")
@@ -159,9 +176,15 @@ class CentroidTopicLabeler:
         if self.checkpoint_path.exists():
             print(f"Resuming from checkpoint: {self.checkpoint_path}")
             with open(self.checkpoint_path, 'r', encoding='utf-8') as f:
-                # keys will be strings in JSON
                 str_dict = json.load(f)
-                checkpoint_dict = {int(k): v for k, v in str_dict.items()}
+                checkpoint_dict = {}
+                for k, v in str_dict.items():
+                    # If it's an error, we ignore it so it gets re-evaluated
+                    if isinstance(v, dict) and "Error" in v.get("label", ""):
+                        continue
+                    if isinstance(v, str) and "Error" in v:
+                        continue
+                    checkpoint_dict[int(k)] = v
         else:
             checkpoint_dict = {}
 
@@ -252,14 +275,13 @@ class TopTermsTopicLabeler:
         async with semaphore:
             try:
                 response = await self.client.chat.completions.create(
-                    model="deepseek-chat",
+                    model="deepseek-v4-pro",
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    response_format={"type": "json_object"},
                     temperature=0.1,
-                    max_tokens=150
+                    max_tokens=1500
                 )
             except Exception as e:
                 print(f"Error for topic {topic_id}: {e}")
@@ -267,22 +289,30 @@ class TopTermsTopicLabeler:
             
             message = response.choices[0].message
             if getattr(message, 'refusal', None):
-                print(f"Model refused the request for topic {topic_id}: {message.refusal}")
-                return str(topic_id), {"label": "Error: Request Refused", "cohesion_score": "Low", "reasoning": ""}
+                raise ValueError(f"Model refused the request: {message.refusal}")
                 
             content = message.content
             if not content:
-                return str(topic_id), {"label": "Error: No Content", "cohesion_score": "Low", "reasoning": ""}
+                raise ValueError("API returned empty content")
                 
             content = content.strip()
+            # Strip markdown blocks if present
+            if content.startswith("```json"):
+                content = content[7:]
+            elif content.startswith("```"):
+                content = content[3:]
+            if content.endswith("```"):
+                content = content[:-3]
+            content = content.strip()
+            
             try:
                 parsed = json.loads(content)
                 label = parsed.get("label", "Error")
                 score = parsed.get("cohesion_score", "Low")
                 reasoning = parsed.get("reasoning", "")
                 result = {"label": label, "cohesion_score": score, "reasoning": reasoning}
-            except json.JSONDecodeError:
-                result = {"label": "JSON Error", "cohesion_score": "Low", "reasoning": ""}
+            except json.JSONDecodeError as e:
+                raise ValueError(f"JSON Parsing Error: {e} | Content: {content[:100]}")
                 
             return str(topic_id), result
 
@@ -332,3 +362,97 @@ class TopTermsTopicLabeler:
                 print(f"Failed to process a cluster after max retries: {e}")
                 
         return checkpoint_dict
+
+class TopicMetaEvaluator:
+    """
+    A class for summarizing and comparing topic modeling methods using DeepSeek.
+    """
+    def __init__(self, api_key=None):
+        if not api_key:
+            api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+            if not api_key:
+                try:
+                    from google.colab import userdata
+                    api_key = userdata.get('DEEPSEEK_API_KEY')
+                except ImportError:
+                    pass
+                    
+        self.api_key = api_key
+        if not self.api_key:
+            print("WARNING: DEEPSEEK_API_KEY not found. API calls will fail.")
+            self.client = None
+        else:
+            from openai import OpenAI
+            self.client = OpenAI(api_key=self.api_key, base_url="https://api.deepseek.com", max_retries=5)
+
+    def evaluate_method(self, method_name, method_evaluations, metrics=None):
+        if not self.client:
+            return "No API Key"
+            
+        system_prompt = (
+            "You are an expert academic taxonomist. Analyze the topic evaluations (labels and cohesion scores) "
+            "for a specific topic modeling method. You will also be provided with quantitative metrics (Silhouette, NPMI, etc.) "
+            "if available. Write a concise, 1-paragraph summary of its strengths, "
+            "weaknesses, and overall quality in grouping academic texts. Do not use conversational filler."
+        )
+        
+        # Format evaluations to avoid context limit (just label and cohesion)
+        compact_evals = []
+        for cid, eval_data in method_evaluations.items():
+            if isinstance(eval_data, dict):
+                compact_evals.append(f"- Topic {cid}: {eval_data.get('label', '')} [{eval_data.get('cohesion_score', '')}]")
+            else:
+                compact_evals.append(f"- Topic {cid}: {eval_data}")
+                
+        eval_text = "\n".join(compact_evals)
+        
+        metrics_text = ""
+        if metrics:
+            metrics_text = "Quantitative Metrics:\n" + "\n".join([f"- {k}: {v}" for k, v in metrics.items()]) + "\n\n"
+            
+        user_prompt = f"Method: {method_name}\n\n{metrics_text}Topic Evaluations:\n{eval_text}\n\nProvide the summary."
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="deepseek-v4-pro",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.2,
+                max_tokens=1500
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"Error evaluating method {method_name}: {e}")
+            return f"Error evaluating method: {e}"
+
+    def generate_final_verdict(self, methods_summaries):
+        if not self.client:
+            return "No API Key"
+            
+        system_prompt = (
+            "You are the head of an academic data mining team. You have received summaries of how different "
+            "topic modeling methods performed on the university's research dataset. Your task is to write a "
+            "final, concise comparative conclusion. Identify the best method(s) for the project (focusing on "
+            "providing accurate, highly cohesive and useful topics for a recommendation system) and briefly "
+            "explain why it outperforms the others. Use markdown formatting. Do not exceed 3 paragraphs."
+        )
+        
+        summaries_text = "\n\n".join([f"### {name}\n{summary}" for name, summary in methods_summaries.items()])
+        user_prompt = f"Here are the summaries of each method:\n{summaries_text}\n\nPlease provide the final comparative verdict."
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="deepseek-v4-pro",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=1500
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"Error generating final verdict: {e}")
+            return f"Error generating final verdict: {e}"
