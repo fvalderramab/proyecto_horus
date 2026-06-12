@@ -1,0 +1,22 @@
+# Core Data and Graph Libraries
+pandas>=2.0.0
+pyarrow>=12.0.0
+numpy>=1.24.0
+networkx>=3.0
+faiss-cpu>=1.7.4
+plotly>=5.0.0
+
+# ML and Model Inference (CPU optimized)
+transformers>=4.40.0
+accelerate>=0.28.0
+einops>=0.7.0
+peft>=0.9.0
+
+# Web Application and Graph UI
+streamlit>=1.35.0
+pyvis>=0.3.2
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Integration (Model Context Protocol)
+mcp>=0.9.0
