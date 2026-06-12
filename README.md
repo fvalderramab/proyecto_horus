@@ -50,6 +50,51 @@ The project is structured as a sequential 12-notebook pipeline:
 
 ---
 
+## 🚀 Interactive Pilot (Streamlit & MCP Server)
+
+Horus features a production-ready interactive pilot to demonstrate the practical value of the data mining pipeline. The pilot consists of a premium **Streamlit web dashboard** and a local **Model Context Protocol (MCP) server** for AI agents.
+
+### 🌟 Dashboard Features & Tab Guide
+
+1.  **🤝 Advisor Recommender (Tab 1)**:
+    *   Input a proposed thesis title and description.
+    *   The system uses the CPU-cached PRISM LoRA model to encode the query and retrieve similar publications via FAISS.
+    *   It aggregates co-authors, filters for active status using the university registry, and displays candidate advisors in sleek cards with matching publications.
+    *   **Ego-Network Visualization**: Selecting any recommended advisor dynamically draws their local co-authorship ego-network (depth=1) in an interactive physical layout, highlighting active professors, retired faculty, and external student collaborators.
+2.  **🕸️ Leiden Community Explorer (Tab 2)**:
+    *   Visualizes the global network macro-graph of topics (pre-computed in the Leiden community detection step).
+    *   Select any community ID from the dropdown menu to inspect its **LLM-generated topic label** (e.g., `0 - Poscosecha de frutas y flores`), publication counts, top active researchers, sample abstracts, and administrative faculty breakdown.
+3.  **🧬 Interdisciplinary Diagnosis (Tab 3)**:
+    *   Displays an **interactive Plotly Heatmap** charting the distribution percentage of publications of all administrative faculties across all Leiden communities.
+    *   Users can zoom, pan, and hover over cells to verify where administrative boundaries overlap semantically (e.g., engineering and medicine papers falling into the same bio-materials topic).
+
+### ⚖️ Understanding the Scoring Controls & Sliders
+
+The recommender computes a **Hybrid Score** for each advisor. You can adjust the importance of each factor in the sidebar:
+*   **Semantic Relevance (PRISM Similarity)**: Weight for the cosine similarity of the proposal text relative to the professor's publications. High weights prioritize matching the specific, narrow research topic.
+*   **Network Authority (PageRank Centrality)**: Weight for the professor's structural authority/influence in the university-wide co-authorship network. High weights favor central, heavily collaborative, and productive figures.
+*   **Co-occurrence Density (Publication Volume)**: Weight for the count of publications the professor has matching the search area. High weights favor highly prolific authors in that specific domain.
+*   **Retrieved Publications (top_k)**: The number of nearest neighbor publications pulled from the FAISS database. Larger values widen the candidate pool to capture indirect expertise; smaller values narrow it to high-precision matches.
+
+---
+
+## 🐳 Docker Deployment
+
+The application is fully containerized. Data tables, models, and outputs directories are mounted as volumes to ensure fast builds.
+
+1.  **Build and run the Streamlit portal**:
+    ```bash
+    docker compose up --build -d
+    ```
+2.  **Access in your browser**:
+    Open [http://localhost:8501](http://localhost:8501).
+3.  **Stop the container**:
+    ```bash
+    docker compose down
+    ```
+
+---
+
 ## ⚙️ Installation & Usage
 
 1. **Clone the repository:**

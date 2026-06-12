@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  horus-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: horus-streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      # Mount data, models, and outputs for real-time local updates and faster image builds
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./outputs:/app/outputs
+    restart: unless-stopped
